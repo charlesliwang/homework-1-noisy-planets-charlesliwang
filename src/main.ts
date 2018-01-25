@@ -12,10 +12,7 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 // Define an object with application parameters and button callbacks
 // This will be referred to by dat.GUI's functions that add GUI elements.
 const controls = {
-  tesselations: 7,
-  'Load Scene': loadScene, // A function pointer, essentially
-  color: [40,150,250,1],
-  'Shader' : 'Custom2'
+  'Pause' : false,
 };
 
 let icosphere: Icosphere;
@@ -24,7 +21,7 @@ let cube: Cube;
 let time = 0;
 
 function loadScene() {
-  icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
+  icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, 8);
   icosphere.create();
   square = new Square(vec3.fromValues(0, 0, 0));
   square.create();
@@ -46,20 +43,9 @@ function main() {
   // Add controls to the gui
   const gui = new DAT.GUI();
   //const text = new GUIText();
-  gui.add(controls, 'tesselations', 0, 8).step(1);
-  gui.add(controls, 'Load Scene');
-  const colorPicker = gui.addColor(controls, 'color');
-  gui.add(controls, 'Shader', [ 'Lambert', 'Custom1', 'Custom2'] );
- 
-  const colorPicked = vec4.fromValues(controls.color[0]/255,controls.color[1]/255,controls.color[2]/255,1)
-      
-  // Display new color whenever color is changed
-  colorPicker.onChange(function() {
-    const colorPicked = vec4.fromValues(controls.color[0]/255,controls.color[1]/255,controls.color[2]/255,1)
-      lambert.setGeometryColor(colorPicked);
-      customShader.setGeometryColor(colorPicked);
-      customShader2.setGeometryColor(colorPicked);
-  });
+  //gui.add(controls, 'Shader', [ 'Lambert', 'Custom1', 'Custom2'] );
+  gui.add(controls, 'Pause', false );
+
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
@@ -98,34 +84,16 @@ function main() {
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/custom2-frag.glsl')),
   ]);
 
-  lambert.setGeometryColor(colorPicked);
-  customShader.setGeometryColor(colorPicked);
-  customShader2.setGeometryColor(colorPicked);
-
   // This function will be called every frame
   function tick() {
     camera.update();
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.clear();
-    //time = (time + 1) % 300;
-    time++;
-    //console.log(time);
-    if(controls.Shader == "Lambert") {
-      renderer.render(camera, lambert, [
-        //icosphere,
-        //square,
-        cube,
-      ]);
-    } else if (controls.Shader == "Custom1") {
-      let v4 = vec4.fromValues(time,time%300,0,1);
-      customShader.setTime(v4);
-      renderer.render(camera, customShader, [
-        icosphere,
-        //square,
-        //cube,
-      ]);
-    } else {
+    if(!controls.Pause) {
+      time++;
+    }
+
       let v4 = vec4.fromValues(time/300,time%300,0,1);
       customShader2.setTime(v4);
       renderer.render(camera, customShader2, [
@@ -133,7 +101,6 @@ function main() {
         square,
         //cube,
       ]);
-    }
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
