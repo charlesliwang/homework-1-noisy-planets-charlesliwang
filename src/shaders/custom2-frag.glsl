@@ -236,6 +236,8 @@ vec2 sdfMoonPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, flo
 
 // m = 0.5 to 0.6
 vec2 sdfEarthPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
+    float t = (cos(12.0 * M_PI * u_Time.z / 300.0)  + 1.0 ) / 2.0;
+    t = 1.0 - t;
     float m = -1.0;
     planet_rad *= bound;
     float perlin_scale = bound - planet_rad;
@@ -250,7 +252,7 @@ vec2 sdfEarthPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, fl
     float perlin_base_clamp = clamp(perlin_base_capped, sea_level,1.0);
     if(perlin_base_clamp <= sea_level) {
         perlin_base_clamp -= abs(perlin_base_capped - sea_level) * 0.5;
-        perlin_base_clamp += perlin3 * 1.5 *abs(perlin_base_clamp - sea_level);
+        perlin_base_clamp += perlin3 * 1.5 *abs(perlin_base_clamp - sea_level) * t * perlin_base * 2.0;
     } else {
         perlin_base_clamp += (perlin_base_capped - sea_level) * 0.25;
         perlin_base_clamp -= perlin3 * 1.2 *(perlin_base_clamp - sea_level);
@@ -266,6 +268,8 @@ vec2 sdfEarthPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, fl
 }
 
 vec2 sdfVolcanoPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
+    float t = (cos(12.0 * M_PI * u_Time.z / 300.0)  + 1.0 ) / 2.0;
+    t = 1.0 - t;
     float m = 0.0;
     planet_rad *= bound;
     float perlin_scale = bound - planet_rad;
@@ -289,7 +293,7 @@ vec2 sdfVolcanoPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, 
     float final_perlin = p2 - p22 * 0.1;
     final_perlin = max(0.0,final_perlin);
     if(final_perlin < 0.001) {
-        final_perlin -= lava * 0.1;
+        final_perlin -= lava * 0.1 * t * 2.0 * perlin_base;
         final_perlin += perlin3 * 0.005;
         m = lava*0.1 + 0.7;
     }
@@ -309,7 +313,7 @@ vec2 map_perlin_planet(vec3 pos, vec3 planet_pos, float bound) {
         float p = floor(u_Time.x)/2.0;
         vec3 p3 = noise_gen3D(vec3(p));
         if(p3.x < 0.5) {
-            p = p3.z * 0.5 + 0.7;
+            p = p3.z * 0.3 + 0.7;
             float size = p3.y * 0.1 + 0.3;
             res = sdfEarthPlanet (pos, planet_pos, size, bound, p);
         } else {
@@ -325,7 +329,7 @@ vec2 map_perlin_planet(vec3 pos, vec3 planet_pos, float bound) {
 vec2 map( vec3 pos)
 {
     
-    float t = (cos(2.0 * M_PI * u_Time.y / 300.0)  + 1.0 ) / 2.0;
+    float t = (cos(2.0 *M_PI * u_Time.y / (u_Time.w ) ) + 1.0 ) / 2.0;
     t = 1.0 - t;
     vec3 x_axis = vec3(1,0,0);
     vec3 y_axis = vec3(0,1,0);
@@ -491,8 +495,8 @@ void main()
         bool flag = true;
 
         float tp = 1000.0;
-        float time = (cos(2.0 * M_PI * u_Time.y / 600.0)  + 1.0 ) / 2.0;
-        vec3 planet_pos = mix(vec3(0.2,-0.9,2.0),vec3(0.0,-0.4,-0.2), 1.0- time );
+        float time = (cos(2.0 * M_PI * u_Time.y / (u_Time.w*2.0))  + 1.0 ) / 2.0;
+        vec3 planet_pos = mix(vec3(0.2,-0.9,2.0),vec3(0.0,-0.4,-0.2), 1.0 - time );
         float sphere_bound = 0.2;
         float tsphere = intersectSphere(ray_Dir, ray_O, planet_pos, sphere_bound);
         if(tsphere > 0.0) {

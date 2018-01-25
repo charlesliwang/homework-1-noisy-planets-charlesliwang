@@ -12,6 +12,7 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 // Define an object with application parameters and button callbacks
 // This will be referred to by dat.GUI's functions that add GUI elements.
 const controls = {
+  'Speed' : 1.0,
   'Pause' : false,
 };
 
@@ -19,6 +20,7 @@ let icosphere: Icosphere;
 let square: Square;
 let cube: Cube;
 let time = 0;
+let time2 = 0;
 
 function loadScene() {
   icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, 8);
@@ -44,6 +46,7 @@ function main() {
   const gui = new DAT.GUI();
   //const text = new GUIText();
   //gui.add(controls, 'Shader', [ 'Lambert', 'Custom1', 'Custom2'] );
+  gui.add(controls, 'Speed', 1, 3).step(0.05);
   gui.add(controls, 'Pause', false );
 
 
@@ -90,11 +93,15 @@ function main() {
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.clear();
+
+    time2++;
     if(!controls.Pause) {
       time++;
     }
 
-      let v4 = vec4.fromValues(time/300,time%300,0,1);
+    let cycle = 300.0/controls.Speed;
+
+      let v4 = vec4.fromValues(time/cycle,time%cycle,time2%cycle,cycle);
       customShader2.setTime(v4);
       renderer.render(camera, customShader2, [
         //icosphere,
