@@ -73,8 +73,11 @@ function main() {
 
   // Initial call to load scene
   loadScene();
-
-  const camera = new Camera(vec3.fromValues(0, 0, 5), vec3.fromValues(0, 0, 0));
+  let cam_scale = 2.0;
+  let camx = 0.7 * cam_scale;
+  let camy = -0.7 * cam_scale;
+  let camz = 2.3;
+  const camera = new Camera(vec3.fromValues(camx,camy,camz), vec3.fromValues(-0.5, -0.25, 0.75));
 
   const renderer = new OpenGLRenderer(canvas);
   renderer.setClearColor(0.2, 0.2, 0.2, 1);
@@ -105,7 +108,7 @@ function main() {
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.clear();
-    time = (time + 1) % 300;
+    //time = (time + 1) % 300;
     if(controls.Shader == "Lambert") {
       renderer.render(camera, lambert, [
         //icosphere,

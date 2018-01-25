@@ -190,43 +190,91 @@ vec2 smin( vec2 a, vec2 b, float k )
     return ret;
 }
 
-vec2 map( vec3 pos )
+float intersectSphere(vec3 rd, vec3 r0, vec3 s0, float sr){
+    float a = dot(rd, rd);
+    vec3 s0_r0 = r0 - s0;
+    float b = 2.0 * dot(rd, s0_r0);
+    float c = dot(s0_r0, s0_r0) - (sr * sr);
+    if (b*b - 4.0*a*c < 0.0) {
+        return -1.0;
+    }
+    return (-b - sqrt((b*b) - 4.0*a*c))/(2.0*a);
+}
+
+float nP(float p) {
+    return (p + 1.0) /2.0;
+}
+
+
+vec2 sdfMoonPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
+    float perlin_scale = bound - planet_rad;
+    float perlin_base = perlin3D(pos - planet_pos, planet_rad * noise_freq);
+
+    float perlin2 = perlin3D(pos - planet_pos, planet_rad * 0.1 * noise_freq);
+    //perlin2 = 1.0;
+    float final_perlin = perlin_base * ((perlin2)*0.2 + 0.8 );
+    final_perlin = clamp(final_perlin, 0.0 , 0.4);
+    return vec2(  sdSphere( pos - planet_pos, planet_rad) - final_perlin * perlin_scale, (final_perlin * 0.5) + 0.5 );
+}
+
+vec2 sdfPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
+    float perlin_scale = bound - planet_rad;
+    float perlin_base = perlin3D(pos - planet_pos, planet_rad * noise_freq);
+
+    float perlin2 = perlin3D(pos - planet_pos, planet_rad * 0.1 * noise_freq);
+    float final_perlin = nP(perlin_base) * (nP(perlin2)*0.2 + 0.8 );
+    return vec2(  sdSphere( pos - planet_pos, planet_rad) - final_perlin * perlin_scale, final_perlin);
+}
+
+vec2 map_perlin_planet(vec3 pos, vec3 planet_pos, float bound) {
+    vec2 res;
+    res = sdfMoonPlanet (pos, planet_pos, 0.1, bound, 0.7);
+    return res;
+}
+
+vec2 map( vec3 pos)
 {
     
     float t = (cos(2.0 * M_PI * u_Time.x / 300.0)  + 1.0 ) / 2.0;
     vec3 x_axis = vec3(1,0,0);
     vec3 y_axis = vec3(0,1,0);
     vec3 z_axis = vec3(0,0,1);
+    float eater_m = 0.0;
+    //vec2 res =  vec2(sdSphere(     pos , 0.5 ), eater_m);
+    //  vec2 res = smin( vec2(sdSphere(     pos , 0.5 ), eater_m) ,
+    //  vec2(sdSphere(    pos-vec3( 0.0,0.0, 0.3), 0.3 ) , eater_m ) ,0.1);
+    
     vec2 res = vec2(opS( sdSphere(     pos , 0.5 ) ,
-                     sdSphere(    pos-vec3( 0.0,0.0, 0.3), 0.3 ) ), 1.0);
-     res = vec2(opS( res.x , sdSphere(    pos-vec3( 0.0,-0.5, 0.1), 0.3 ) ), 1.0);
-    res = smin(res , vec2(sdSphere(    pos-vec3( 0.0,0.0, -0.5), 0.3 ), 1.0), 0.1);
+                     sdSphere(    pos-vec3( 0.0,0.0, 0.3), 0.3 ) ), eater_m);
+    
+    res = vec2(opS( res.x , sdSphere(    pos-vec3( 0.0,-0.5, 0.1), 0.3 ) ), eater_m);
+    res = smin(res , vec2(sdSphere(    pos-vec3( 0.0,0.0, -0.5), 0.3 ), 1.0), eater_m);
     //res = smin(res , vec2(sdTorus(    opRt(pos-vec3( 0.0,-0.35, 0.0),x_axis,M_PI/2.0), vec2(0.3,0.10) ), 1.0), 0.1);
     
-
-    
-    vec2 eyelid1 = vec2(opS( sdSphere(   opRt(pos-vec3( 0.0,0.0, 0.3),x_axis,(t + 0.05)*M_PI/4.0) , 0.3 ) ,
-                    sdBox(    opRt(pos-vec3( 0.0, 0.0, 0.3),x_axis,(t + 0.05)*M_PI/4.0)-vec3( 0.0, -0.6, 0.0), vec3(0.6)) ), 1.0);
-    vec2 eyelid2 = vec2(opS( sdSphere(   opRt(pos-vec3( 0.0,-0.05, 0.3),x_axis,(t + 0.05)*-M_PI/4.0) , 0.28 ) ,
-                    sdBox(    opRt(pos-vec3( 0.0, -0.05, 0.3),x_axis,(t + 0.05)*-M_PI/4.0)-vec3( 0.0, 0.6, 0.0), vec3(0.6)) ), 1.0);
+    vec2 eyelid1 = vec2(opS( sdSphere(   opRt(pos-vec3( 0.0,0.0, 0.3),x_axis,(t + 0.1)*M_PI/4.0) , 0.3 ) ,
+                    sdBox(    opRt(pos-vec3( 0.0, 0.0, 0.3),x_axis,(t + 0.1)*M_PI/4.0)-vec3( 0.0, -0.6, 0.0), vec3(0.6)) ), eater_m);
+    vec2 eyelid2 = vec2(opS( sdSphere(   opRt(pos-vec3( 0.0,-0.05, 0.3),x_axis,(t + 0.1)*-M_PI/4.0) , 0.28 ) ,
+                    sdBox(    opRt(pos-vec3( 0.0, -0.05, 0.3),x_axis,(t + 0.1)*-M_PI/4.0)-vec3( 0.0, 0.6, 0.0), vec3(0.6)) ), eater_m);
 
     vec2 mouth_bot = vec2(opS( sdSphere(   opRt(pos-vec3( 0.0,-0.55 - (0.2 * t), 0.1),x_axis,(t + 0.05)*-M_PI/4.0), 0.3 ) ,
-                sdBox(    opRt(pos-vec3( 0.0, -0.55, 0.05)-vec3( 0.0,  -(0.2 * t), 0.0),x_axis,(t + 0.05)*-M_PI/4.0) -vec3( 0.0, 0.6, 0.05), vec3(0.6)) ), 1.0);
-    mouth_bot = smin(mouth_bot , vec2(sdTorus(    opRt(pos-vec3( 0.0,-0.555 - (0.2 * t), 0.05),x_axis,(t + 0.05)*-M_PI/4.0), vec2(0.3,0.03) ), 1.0), 0.05);
+                sdBox(    opRt(pos-vec3( 0.0, -0.55, 0.05)-vec3( 0.0,  -(0.2 * t), 0.0),x_axis,(t + 0.05)*-M_PI/4.0) -vec3( 0.0, 0.6, 0.05), vec3(0.6)) ), eater_m);
+    mouth_bot = smin(mouth_bot , vec2(sdTorus(    opRt(pos-vec3( 0.0,-0.555 - (0.2 * t), 0.05),x_axis,(t + 0.05)*-M_PI/4.0), vec2(0.3,0.03) ), eater_m), 0.05);
     
-    res = smin(res , vec2(sdTorus(opRt(pos-vec3( 0.0,-0.3 , 0.1),x_axis,0.0), vec2(0.27,0.03) ), 1.0) , 0.05);
+    res = smin(res , vec2(sdTorus(opRt(pos-vec3( 0.0,-0.3 , 0.1),x_axis,0.0), vec2(0.27,0.03) ), eater_m) , 0.05);
     res = smin(res,mouth_bot,0.1);
     vec2 mouth_back = vec2(opS( sdSphere(   opRt(pos-vec3( 0.0,-0.35 - (0.1 * t), 0.0),x_axis,0.0) , 0.33 ) ,
-    sdBox(    opRt(pos-vec3( 0.0, -0.4, 0.0),x_axis,0.0)-vec3( 0.0, 0.0, 1.0), vec3(1.0)) ), 1.0);
+    sdBox(    opRt(pos-vec3( 0.0, -0.4, 0.0),x_axis,0.0)-vec3( 0.0, 0.0, 1.0), vec3(1.0)) ), eater_m );
 
     res = smin(res , mouth_back, 0.1);
-    res = smin(res,eyelid1, 0.01);
-    res = smin(res,eyelid2, 0.01);
-    vec2 eye_ball = vec2(opS(sdSphere(pos - vec3(0.0,0.0,0.275), 0.295), sdSphere(pos - vec3(0.0,0.0,0.525), 0.08) ), 2.0 );
+    res = opU(res,eyelid1);
+    res = opU(res,eyelid2);
+    //vec2 eye_ball = vec2(opS(sdSphere(pos - vec3(0.0,0.0,0.275), 0.295), sdSphere(pos - vec3(0.0,0.0,0.525), 0.08) ), 2.0 );
+
+    vec2 eye_ball = opU( vec2(sdSphere(pos - vec3(0.0,0.0,0.275), 0.295), 0.1 )  , vec2(sdSphere(pos - vec3(0.0,- 0.025,0.55), 0.05), 0.2 ) );
 
     res = opU(res,eye_ball);
-    //res = opU(res, vec2(sdTorus( opRt(pos-vec3(0.0,0.0,0.4),vec3(1,0,0), M_PI/2.0 ), vec2(0.25,0.05)), 0.5) );
     
+    //res = opU(res, vec2(sdTorus( opRt(pos-vec3(0.0,0.0,0.4),vec3(1,0,0), M_PI/2.0 ), vec2(0.25,0.05)), 0.5) );
     //res = vec2(opRep(vec3(1,1,1),vec3(1,1,1)),1.0);
     return res;
 }
@@ -234,22 +282,28 @@ vec2 map( vec3 pos )
 vec3 calcNormal(vec3 pos )
 {
     vec2 e = vec2(1.0,-1.0)*0.5773*0.0005;
-    return normalize( e.xyy*map( pos + e.xyy ).x + 
-					  e.yyx*map( pos + e.yyx ).x + 
-					  e.yxy*map( pos + e.yxy ).x + 
-					  e.xxx*map( pos + e.xxx ).x );
+    return normalize( e.xyy*map( pos + e.xyy).x + 
+					  e.yyx*map( pos + e.yyx).x + 
+					  e.yxy*map( pos + e.yxy).x + 
+					  e.xxx*map( pos + e.xxx).x );
+}
+
+vec3 calcPerlinPlanetNorm(vec3 pos, vec3 planet_pos, float bound)
+{
+    vec2 e = vec2(1.0,-1.0)*0.5773*0.0005;
+    return normalize( e.xyy*map_perlin_planet( pos + e.xyy , planet_pos, bound).x + 
+					  e.yyx*map_perlin_planet( pos + e.yyx , planet_pos, bound).x + 
+					  e.yxy*map_perlin_planet( pos + e.yxy , planet_pos, bound).x + 
+					  e.xxx*map_perlin_planet( pos + e.xxx , planet_pos, bound).x );
 }
 
 
 void main()
 {
     // Material base color (before shading)
-    
 
     float u = gl_FragCoord.x * 2.0 / u_Window.x - 1.0;
     float v = gl_FragCoord.y * 2.0 / u_Window.y - 1.0;
-    out_Col = vec4(u,v,0,1);
-    //return;
 
     float imageWidth = u_Window.x;
     float imageHeight = u_Window.y;
@@ -259,42 +313,93 @@ void main()
     float Py = (v) * tan(fov / 2.0 * M_PI / 180.0);
     vec3 ray_O = vec3(0.0); 
     vec3 ray_Dir = vec3(Px, Py, -1) - ray_O;
+    ray_Dir = normalize(ray_Dir);
+    
+
     ray_O = vec3(u_ViewInv * vec4(ray_O , 1.0));
     ray_Dir = vec3(u_ViewInv * vec4(ray_Dir, 0.0));
+    ray_Dir = normalize(ray_Dir);
     
-    vec4 diffuseColor = vec4(0,0,0.2,1.0);
+    vec4 diffuseColor = vec4(0,0.07,0.1,1.0);
     vec4 norm;
         //diffuseColor = vec4(ws_Pos);
 
         // Calculate the diffuse term for Lambert shading
-        float diffuseTerm = dot(normalize(fs_Nor), normalize(fs_LightVec));
-        float perlin = perlin3D(ws_Pos.xyz, 0.3) + 0.4;
-        diffuseTerm = 1.0;
+    float diffuseTerm = dot(normalize(fs_Nor), normalize(fs_LightVec));
+    diffuseTerm = 1.0;
 
         // ray marching step
         float step = 0.0;
         int count = 0;
-        vec3 center = vec3(0.0);
         vec3 P = ray_O;
         //Simple raymarching (lots of assumptions made / hardcoding)
         bool flag = true;
+
+        float tp = 1000.0;
+        float time = (cos(2.0 * M_PI * u_Time.x / 300.0)  + 1.0 ) / 2.0;
+        vec3 planet_pos = mix(vec3(0.2,-0.60,2.0),vec3(0.0,-0.4,-0.3), 1.0- time );
+        float sphere_bound = 0.2;
+        float tsphere = intersectSphere(ray_Dir, ray_O, planet_pos, sphere_bound);
+        if(tsphere > 0.0) {
+        tp = tsphere;
+            while (flag) {
+                float radius = 0.5;
+                P = ray_O + tp * ray_Dir;
+                vec2 map = map_perlin_planet(P, planet_pos, sphere_bound);
+                float d = map.x;
+                if(abs(d) < 0.001) {
+                    
+                    diffuseColor = mix(vec4(1,0,0,1),vec4(0,0,1,1) ,1.0);
+                    float m = map.y;
+                    norm = vec4(calcPerlinPlanetNorm(P,planet_pos, sphere_bound), 0.0);
+                    if(m > 0.5) {
+                        vec3 col = mix(vec3(1,0,0), vec3(0,1,0), (m - 0.5) * 2.0);
+                        diffuseColor = vec4(col,1.0);
+                    }
+                    diffuseTerm = dot(normalize(norm), normalize(fs_LightVec));
+                    flag = false;
+                } 
+                tp += d/2.0;
+                
+                if(count > 64 || tp > 8.0) {
+                    //diffuseColor = vec4(1.0);
+                    //diffuseTerm = 1.0;
+                    tp = 1000.0;
+                    flag = false;
+                }
+                count++;
+            }
+        // diffuseColor = vec4(1.0);
+        // tp = 0.0;
+        }
+        step = 0.0;
+        count = 0;
+        flag = true;
         float t = 0.0;
+
+    //ray intersection test planet
+
         while (flag) {
             float radius = 0.5;
             P = ray_O + t * ray_Dir;
             vec2 map = map(P);
             float d = map.x;
-            if(abs(d) < 0.001) {
+            if(abs(d) < 0.005 && t < tp) {
                 
-                diffuseColor = mix(vec4(1,0,0,1),vec4(0,0,1,1) ,1.0);
-                vec3 norm = calcNormal(P);
-                diffuseTerm = dot(normalize(vec4(norm,0.0)), normalize(fs_LightVec));
-                diffuseTerm = 1.0;
-                diffuseColor = vec4(norm,1.0);
+                norm = vec4(calcNormal(P),0.0 );
+                diffuseTerm = dot(normalize(norm), normalize(fs_LightVec));
+                //diffuseTerm = 1.0;
+                //diffuseColor = vec4(norm,1.0);
+                float m = map.y;
+                if(m < 0.5) {
+                    
+                    diffuseColor = mix(vec4(1,0,0,1),vec4(1,1,1,1) , m * 10.0);
+
+                }
                 flag = false;
             } 
             t += d;
-            if(count > 64 || t > 10.0) {
+            if(count > 126 || t > 200.0) {
                 flag = false;
             }
             count++;
