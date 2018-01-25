@@ -167,6 +167,17 @@ float sdTorus( vec3 p, vec2 t )
     return length( vec2(length(p.xz)-t.x,p.y) )-t.y;
 }
 
+float sdCappedCone(vec3 p, vec3 c )
+{
+    vec2 q = vec2( length(p.xz), p.y );
+    vec2 v = vec2( c.z*c.y/c.x, -c.z );
+    vec2 w = v - q;
+    vec2 vv = vec2( dot(v,v), v.x*v.x );
+    vec2 qv = vec2( dot(v,w), v.x*w.x );
+    vec2 d = max(qv,0.0)*qv/vv;
+    return sqrt( dot(w,w) - max(d.x,d.y) ) * sign(max(q.y*v.x-q.x*v.y,w.y));
+}
+
 float opRep( vec3 p, vec3 c )
 {
     vec3 q = mod(p,c)-0.5*c;
@@ -205,37 +216,89 @@ float nP(float p) {
     return (p + 1.0) /2.0;
 }
 
+float la_mult(float v, float scale) {
+    return v*scale + (1.0-scale);
+}
+
 
 vec2 sdfMoonPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
+    planet_rad *= bound;
     float perlin_scale = bound - planet_rad;
     float perlin_base = perlin3D(pos - planet_pos, planet_rad * noise_freq);
+    perlin_base = clamp(perlin_base, 0.0,0.45);
 
     float perlin2 = perlin3D(pos - planet_pos, planet_rad * 0.1 * noise_freq);
     //perlin2 = 1.0;
-    float final_perlin = perlin_base * ((perlin2)*0.2 + 0.8 );
-    final_perlin = clamp(final_perlin, 0.0 , 0.4);
+    float final_perlin = perlin_base * la_mult(perlin2,0.05);
+    //final_perlin = clamp(final_perlin, 0.0 , 0.4);
     return vec2(  sdSphere( pos - planet_pos, planet_rad) - final_perlin * perlin_scale, (final_perlin * 0.5) + 0.5 );
 }
 
-vec2 sdfPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
+// m = 0.5 to 0.6
+vec2 sdfEarthPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
+    float m = -1.0;
+    planet_rad *= bound;
     float perlin_scale = bound - planet_rad;
     float perlin_base = perlin3D(pos - planet_pos, planet_rad * noise_freq);
 
-    float perlin2 = perlin3D(pos - planet_pos, planet_rad * 0.1 * noise_freq);
-    float final_perlin = nP(perlin_base) * (nP(perlin2)*0.2 + 0.8 );
-    return vec2(  sdSphere( pos - planet_pos, planet_rad) - final_perlin * perlin_scale, final_perlin);
+    perlin_base *= 1.10;
+    perlin_base -= 0.1;
+    float perlin3 = perlin3D(pos - planet_pos, planet_rad * 0.3 * noise_freq);
+    float perlin_base_capped = min(perlin_base, 0.6);
+    perlin_base_capped *= la_mult(perlin3,0.2);
+    float sea_level = 0.40;
+    float perlin_base_clamp = clamp(perlin_base_capped, sea_level,1.0);
+    if(perlin_base_clamp <= sea_level) {
+        perlin_base_clamp -= abs(perlin_base_capped - sea_level) * 0.5;
+        perlin_base_clamp += perlin3 * 1.5 *abs(perlin_base_clamp - sea_level);
+    } else {
+        perlin_base_clamp += (perlin_base_capped - sea_level) * 0.25;
+        perlin_base_clamp -= perlin3 * 1.2 *(perlin_base_clamp - sea_level);
+    }
+    if(perlin_base > 0.63) {
+        perlin_base_clamp -= (perlin_base - 0.63) * 2.0;
+        m = 0.581;
+    }
+    
+    
+
+
+    float perlin2 = perlin3D(pos - planet_pos, planet_rad * 0.02 * noise_freq);
+    float final_perlin = perlin_base_clamp * la_mult(perlin2, 0.015);
+    if(m < 0.0) {m = (final_perlin * 0.1) + 0.5;}
+    return vec2(  sdSphere( pos - planet_pos, planet_rad) - final_perlin * perlin_scale, m);
+}
+
+vec2 sdfVolcanoPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
+    planet_rad *= bound;
+    float perlin_scale = bound - planet_rad;
+    float perlin_base = perlin3D(pos - planet_pos, planet_rad * noise_freq);
+    float final_perlin = 0.0;
+    vec2 volcano = vec2( sdCappedCone( pos- planet_pos - vec3(0.0,0.0,0.0) , vec3(0.25) ), 0.0);
+    vec2 planet = vec2(  sdSphere( pos - planet_pos, planet_rad) - final_perlin * perlin_scale, (final_perlin * 0.1) + 0.5);
+    vec2 res = opU(volcano,planet);
+    return planet;
 }
 
 vec2 map_perlin_planet(vec3 pos, vec3 planet_pos, float bound) {
     vec2 res;
-    res = sdfMoonPlanet (pos, planet_pos, 0.1, bound, 0.7);
+    //res = sdfMoonPlanet (pos, planet_pos, 0.5, bound, 0.9);
+    if(u_Time.x < 1.0) {
+        res = sdfEarthPlanet (pos, planet_pos, 0.35, bound, 0.9);
+    } else {
+        float p = floor(u_Time.x)/2.0;
+        vec3 p3 = noise_gen3D(vec3(p));
+        p = p3.x * 0.5 + 0.7;
+        res = sdfEarthPlanet (pos, planet_pos, 0.35, bound, p);
+    }
+    //res = sdfVolcanoPlanet (pos, planet_pos, 0.35, bound, 0.9);
     return res;
 }
 
 vec2 map( vec3 pos)
 {
     
-    float t = (cos(2.0 * M_PI * u_Time.x / 300.0)  + 1.0 ) / 2.0;
+    float t = (cos(2.0 * M_PI * u_Time.y / 600.0)  + 1.0 ) / 2.0;
     vec3 x_axis = vec3(1,0,0);
     vec3 y_axis = vec3(0,1,0);
     vec3 z_axis = vec3(0,0,1);
@@ -246,6 +309,7 @@ vec2 map( vec3 pos)
     
     vec2 res = vec2(opS( sdSphere(     pos , 0.5 ) ,
                      sdSphere(    pos-vec3( 0.0,0.0, 0.3), 0.3 ) ), eater_m);
+                     
     
     res = vec2(opS( res.x , sdSphere(    pos-vec3( 0.0,-0.5, 0.1), 0.3 ) ), eater_m);
     res = smin(res , vec2(sdSphere(    pos-vec3( 0.0,0.0, -0.5), 0.3 ), 1.0), eater_m);
@@ -297,6 +361,42 @@ vec3 calcPerlinPlanetNorm(vec3 pos, vec3 planet_pos, float bound)
 					  e.xxx*map_perlin_planet( pos + e.xxx , planet_pos, bound).x );
 }
 
+struct Mat
+{
+    vec4 diffuseColor;
+    float diffuseTerm;
+    float specularTerm;
+    vec3 specularColor;
+};
+
+Mat getMaterial(float m, vec4 norm, vec3 ray_Dir) {
+    Mat mat;
+    vec4 H = normalize(fs_LightVec + vec4(ray_Dir,0.0));
+    mat.specularTerm = pow(clamp(dot(H,norm),0.0,1.0 ),10.0);
+    mat.diffuseColor = vec4(1.0);
+    if(m >= 0.5 && m < 0.6 ) {
+        //PLANET COLORS INTERP
+        float nm = (m - 0.5) * 10.0;
+        if(nm < 0.40) {
+            vec3 col = mix(vec3(0.0,0.0,0.1), vec3(0.0,0.2,1.0), (nm * 2.5) - 0.4) ;
+            mat.diffuseColor = vec4(col,1.0);
+        } else if (m < 0.581) {
+            vec3 col = mix(vec3(0.2,0.5,0.1), vec3(1.0,0.8,0.2), (nm - 0.3) * 3.5 ) ;
+            mat.diffuseColor = vec4(col,1.0);
+            mat.specularTerm = 0.0;
+        } else {
+            vec3 col = mix(vec3(0.2,0.5,0.1), vec3(1.0,0.8,0.2), (nm - 0.3) * 3.5 ) ;
+            col = vec3(0.6,0.2,0.0);
+            mat.diffuseColor = vec4(col,1.0);
+        }
+    }
+    if(m < 0.5) {
+        mat.diffuseColor = mix(vec4(0.4,0.2,0.2,1),vec4(1,1,1,1) , m * 10.0);
+    }
+    mat.diffuseTerm = dot(normalize(norm), normalize(fs_LightVec));
+    mat.specularColor = vec3(0.8);
+    return mat;
+}
 
 void main()
 {
@@ -326,6 +426,7 @@ void main()
 
         // Calculate the diffuse term for Lambert shading
     float diffuseTerm = dot(normalize(fs_Nor), normalize(fs_LightVec));
+    float specularTerm = 0.0;
     diffuseTerm = 1.0;
 
         // ray marching step
@@ -336,14 +437,13 @@ void main()
         bool flag = true;
 
         float tp = 1000.0;
-        float time = (cos(2.0 * M_PI * u_Time.x / 300.0)  + 1.0 ) / 2.0;
-        vec3 planet_pos = mix(vec3(0.2,-0.60,2.0),vec3(0.0,-0.4,-0.3), 1.0- time );
+        float time = (cos(2.0 * M_PI * u_Time.y / 600.0)  + 1.0 ) / 2.0;
+        vec3 planet_pos = mix(vec3(0.2,-0.60,2.0),vec3(0.0,-0.4,-0.2), 1.0- time );
         float sphere_bound = 0.2;
         float tsphere = intersectSphere(ray_Dir, ray_O, planet_pos, sphere_bound);
         if(tsphere > 0.0) {
         tp = tsphere;
             while (flag) {
-                float radius = 0.5;
                 P = ray_O + tp * ray_Dir;
                 vec2 map = map_perlin_planet(P, planet_pos, sphere_bound);
                 float d = map.x;
@@ -352,11 +452,11 @@ void main()
                     diffuseColor = mix(vec4(1,0,0,1),vec4(0,0,1,1) ,1.0);
                     float m = map.y;
                     norm = vec4(calcPerlinPlanetNorm(P,planet_pos, sphere_bound), 0.0);
-                    if(m > 0.5) {
-                        vec3 col = mix(vec3(1,0,0), vec3(0,1,0), (m - 0.5) * 2.0);
-                        diffuseColor = vec4(col,1.0);
-                    }
-                    diffuseTerm = dot(normalize(norm), normalize(fs_LightVec));
+                    Mat mat = getMaterial(m,norm,ray_Dir);
+                    specularTerm = mat.specularTerm;
+                    diffuseColor = mat.diffuseColor;
+                    diffuseTerm = mat.diffuseTerm;
+                    
                     flag = false;
                 } 
                 tp += d/2.0;
@@ -385,17 +485,13 @@ void main()
             vec2 map = map(P);
             float d = map.x;
             if(abs(d) < 0.005 && t < tp) {
-                
                 norm = vec4(calcNormal(P),0.0 );
-                diffuseTerm = dot(normalize(norm), normalize(fs_LightVec));
-                //diffuseTerm = 1.0;
-                //diffuseColor = vec4(norm,1.0);
                 float m = map.y;
-                if(m < 0.5) {
-                    
-                    diffuseColor = mix(vec4(1,0,0,1),vec4(1,1,1,1) , m * 10.0);
-
-                }
+                Mat mat = getMaterial(m,norm,ray_Dir);
+                specularTerm = mat.specularTerm;
+                diffuseColor = mat.diffuseColor;
+                diffuseTerm = mat.diffuseTerm;
+                
                 flag = false;
             } 
             t += d;
@@ -410,8 +506,10 @@ void main()
         float lightIntensity = diffuseTerm + ambientTerm;   //Add a small float value to the color multiplier
                                                             //to simulate ambient lighting. This ensures that faces that are not
                                                             //lit by our point light are not completely black.
+        lightIntensity = clamp(lightIntensity, 0.2,1.0);
         //lightIntensity = 1.0f;
         // Compute final shaded color
         //vec2 window = (u_Window.x, u_Window.y);
-        out_Col = vec4(diffuseColor.rgb * lightIntensity, 1.0);
+        vec3 specularCol = vec3(0.8);
+        out_Col = vec4(diffuseColor.rgb * lightIntensity, 1.0) +specularTerm * vec4(specularCol,0.0);
 }

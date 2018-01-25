@@ -21,7 +21,7 @@ const controls = {
 let icosphere: Icosphere;
 let square: Square;
 let cube: Cube;
-let time = 300;
+let time = 0;
 
 function loadScene() {
   icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
@@ -109,6 +109,8 @@ function main() {
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.clear();
     //time = (time + 1) % 300;
+    time++;
+    //console.log(time);
     if(controls.Shader == "Lambert") {
       renderer.render(camera, lambert, [
         //icosphere,
@@ -116,7 +118,7 @@ function main() {
         cube,
       ]);
     } else if (controls.Shader == "Custom1") {
-      let v4 = vec4.fromValues(time,0,0,1);
+      let v4 = vec4.fromValues(time,time%300,0,1);
       customShader.setTime(v4);
       renderer.render(camera, customShader, [
         icosphere,
@@ -124,7 +126,7 @@ function main() {
         //cube,
       ]);
     } else {
-      let v4 = vec4.fromValues(time,0,0,1);
+      let v4 = vec4.fromValues(time/300,time%300,0,1);
       customShader2.setTime(v4);
       renderer.render(camera, customShader2, [
         //icosphere,
