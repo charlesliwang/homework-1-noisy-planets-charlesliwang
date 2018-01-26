@@ -31,14 +31,14 @@ Both planet types include a "sea-level."
 Sea-level is determined by creating a clamped version the "base-level" perlin noise. Because the original, un-clamped noise is continuous at the sea-level, using this original base-level noise to scale noise (that may be different above and below sea-level) will ensure that there are no gaps in the surface. If these planets were implemented by vertex deformation on an sphere geometry, this wouldn't be as much of an issue because of the connected faces.
 
 ### Earth-like Planet
-The super-planet's staple food
+The super-planet's staple food\
 ![](img/earth.png)
 
 The volcano-like structures are formed by clamping the upper noise values (~0.7) and subtracting values from the original noise that are a step higher (~0.8).\
 Specular highlight on the water, but just lambert on land.
 
 ### Hot Planet
-When Earth-like Planets feel too bland
+When Earth-like Planets feel too bland\
 ![](img/hot.png)
 
 The small, sharp circular dips are formed by isolating a mid-frequency noise to some intermediate value-range (values below t0 and above t1 have little contribution).\
