@@ -13,6 +13,9 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 // This will be referred to by dat.GUI's functions that add GUI elements.
 const controls = {
   'Speed' : 1.0,
+  'PlanetRadius' : 0.6,
+  'Frequency' : 1.35 ,
+  'Planets' : 'Random' ,
   'Pause' : false,
 };
 
@@ -31,8 +34,6 @@ function loadScene() {
   cube.create();
 }
 
-
-
 function main() {
   // Initial display for framerate
   const stats = Stats();
@@ -48,6 +49,9 @@ function main() {
   //gui.add(controls, 'Shader', [ 'Lambert', 'Custom1', 'Custom2'] );
   gui.add(controls, 'Speed', 1, 3).step(0.05);
   gui.add(controls, 'Pause', false );
+  gui.add(controls, 'PlanetRadius', 0.5, 0.7).step(0.01);
+  gui.add(controls, 'Frequency', 1.2, 2).step(0.01);
+  gui.add(controls, 'Planets', [ 'Random', 'Earth-like', 'Hot Planet'] );
 
 
   // get canvas and webgl context
@@ -100,9 +104,19 @@ function main() {
     }
 
     let cycle = 300.0/controls.Speed;
-
+    //0 - radius
+    //1 - freq
+    //2 - rand
+    let misc2 = 0;
+    if(controls.Planets == 'Earth-like') {
+      misc2 = 1;
+    } else if (controls.Planets == 'Hot Planet') {
+      misc2 = 2;
+    }
+      let misc = vec4.fromValues(controls.PlanetRadius, controls.Frequency, misc2, 0.0);
       let v4 = vec4.fromValues(time/cycle,time%cycle,time2%cycle,cycle);
       customShader2.setTime(v4);
+      customShader2.setGeometryColor(misc);
       renderer.render(camera, customShader2, [
         //icosphere,
         square,

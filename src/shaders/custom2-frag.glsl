@@ -236,7 +236,7 @@ vec2 sdfMoonPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, flo
 
 // m = 0.5 to 0.6
 vec2 sdfEarthPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, float noise_freq) {
-    float t = (cos(12.0 * M_PI * u_Time.z / 300.0)  + 1.0 ) / 2.0;
+    float t = (cos(8.0 * M_PI * u_Time.z / 300.0)  + 1.0 ) / 2.0;
     t = 1.0 - t;
     float m = -1.0;
     planet_rad *= bound;
@@ -306,21 +306,27 @@ vec2 sdfVolcanoPlanet(vec3 pos, vec3 planet_pos, float planet_rad, float bound, 
 vec2 map_perlin_planet(vec3 pos, vec3 planet_pos, float bound) {
     vec2 res;
     //res = sdfMoonPlanet (pos, planet_pos, 0.5, bound, 0.9);
-    if(u_Time.x < 1.0) {
-        res = sdfEarthPlanet (pos, planet_pos, 0.35, bound, 0.9);
-        //res = sdfVolcanoPlanet (pos, planet_pos, 0.8, bound, 0.75);
-    } else {
-        float p = floor(u_Time.x)/2.0;
-        vec3 p3 = noise_gen3D(vec3(p));
-        if(p3.x < 0.5) {
-            p = p3.z * 0.3 + 0.7;
-            float size = p3.y * 0.1 + 0.3;
-            res = sdfEarthPlanet (pos, planet_pos, size, bound, p);
+    if(u_Color.z == 0.0) {
+        if(u_Time.x < 1.0) {
+            res = sdfEarthPlanet (pos, planet_pos, 0.35, bound, 0.9);
+            //res = sdfVolcanoPlanet (pos, planet_pos, 0.8, bound, 0.75);
         } else {
-            p = p3.z * 0.3 + 0.6;
-            float size = p3.y * 0.1 + 0.75;
-            res = sdfVolcanoPlanet (pos, planet_pos, size, bound, p);
+            float p = floor(u_Time.x)/2.0;
+            vec3 p3 = noise_gen3D(vec3(p));
+            if(p3.x < 0.5) {
+                p = p3.z * 0.3 + 0.7;
+                float size = p3.y * 0.1 + 0.3;
+                res = sdfEarthPlanet (pos, planet_pos, size, bound, p);
+            } else {
+                p = p3.z * 0.3 + 0.6;
+                float size = p3.y * 0.1 + 0.75;
+                res = sdfVolcanoPlanet (pos, planet_pos, size, bound, p);
+            }
         }
+    } else if(u_Color.z == 1.0) {
+        res = sdfEarthPlanet (pos, planet_pos, u_Color.x, bound, 1.0/u_Color.y);
+    } else {
+        res = sdfVolcanoPlanet (pos, planet_pos, u_Color.x + 0.2, bound, 1.0/u_Color.y);
     }
     //res = sdfVolcanoPlanet (pos, planet_pos, 0.35, bound, 0.9);
     return res;
